@@ -1,0 +1,42 @@
+const WebSocket = require("ws");
+const http = require("http");
+
+const server = http.createServer();
+const wss = new WebSocket.Server({ server });
+
+const clients = new Map();
+
+wss.on("connection", (ws) => {
+  let userId = null;
+
+  ws.on("message", (msg) => {
+    const data = JSON.parse(msg);
+
+    if (data.type === "join") {
+      userId = data.user;
+      clients.set(userId, ws);
+      console.log(`👤 ${userId} conectado`);
+      return;
+    }
+
+    if (data.type === "state") {
+      for (const client of clients.values()) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(data));
+        }
+      }
+    }
+  });
+
+  ws.on("close", () => {
+    if (userId) {
+      clients.delete(userId);
+      console.log(`❌ ${userId} desconectado`);
+    }
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log("🟢 Servidor WebSocket activo en puerto", PORT);
+});
