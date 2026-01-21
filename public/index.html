@@ -10,9 +10,8 @@
     font-family: monospace;
     padding: 20px;
   }
-  #status {
-    font-weight: bold;
-  }
+  h2 { margin-bottom: 10px; }
+  #status { font-weight: bold; }
   #avatars {
     display: flex;
     flex-wrap: wrap;
@@ -58,19 +57,21 @@
 <script>
 const USERNAME = prompt("Tu nombre (ej: juan):");
 
-// Conexión WebSocket
+// Conexión WebSocket al servidor Render
 const socket = new WebSocket("wss://avatares-overlay.onrender.com");
 
 const statusEl = document.getElementById("status");
 const avatarsDiv = document.getElementById("avatars");
 
+// Imagenes cargadas por el usuario
 const avatarImages = {
   idle: null,
   talk: null,
   angry: null
 };
 
-const users = {}; // Para guardar divs de cada usuario
+// Guardar div de cada usuario
+const users = {};
 
 // Función para convertir archivo a URL local
 function handleFile(file, state) {
@@ -116,11 +117,10 @@ socket.onmessage = (event) => {
   }
 
   const img = userDiv.querySelector("img");
-  // Si la imagen está cargada, úsala; si no, deja vacía
   if (avatarImages[data.state]) {
     img.src = avatarImages[data.state];
   } else {
-    img.src = "";
+    img.src = ""; // Si no se ha cargado la imagen
   }
 };
 
@@ -147,8 +147,8 @@ navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
     const volume = sum / dataArray.length / 255;
 
     let state = "idle";
-    if (volume > 0.10) state = "talk";
-    if (volume > 0.25) state = "angry";
+    if (volume > 0.05) state = "talk";
+    if (volume > 0.20) state = "angry";
 
     socket.send(JSON.stringify({
       type: "state",
