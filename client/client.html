@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Mic Client</title>
+<title>Avatares en tiempo real</title>
 <style>
   body {
     background: #111;
@@ -10,24 +10,124 @@
     font-family: monospace;
     padding: 20px;
   }
+  #status {
+    font-weight: bold;
+  }
+  #avatars {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  .user-avatar {
+    margin: 10px;
+    text-align: center;
+  }
+  .user-avatar img {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #0f0;
+    border-radius: 10px;
+  }
+  .buttons {
+    margin-top: 10px;
+  }
+  .buttons button {
+    margin: 5px;
+    padding: 8px;
+  }
 </style>
 </head>
 <body>
 
-<h2>🎤 Cliente de micrófono</h2>
+<h2>🎤 Avatares en tiempo real</h2>
 <p id="status">Conectando...</p>
-<p id="state">Estado: -</p>
+
+<div class="buttons">
+  <button id="btnIdle">Elegir imagen Idle</button>
+  <input type="file" id="fileIdle" accept="image/*" style="display:none">
+
+  <button id="btnTalk">Elegir imagen Talk</button>
+  <input type="file" id="fileTalk" accept="image/*" style="display:none">
+
+  <button id="btnAngry">Elegir imagen Angry</button>
+  <input type="file" id="fileAngry" accept="image/*" style="display:none">
+</div>
+
+<div id="avatars"></div>
 
 <script>
 const USERNAME = prompt("Tu nombre (ej: juan):");
 
-const socket = new WebSocket("ws://localhost:3000");
+// Conexión WebSocket
+const socket = new WebSocket("wss://avatares-overlay.onrender.com");
 
+const statusEl = document.getElementById("status");
+const avatarsDiv = document.getElementById("avatars");
+
+const avatarImages = {
+  idle: null,
+  talk: null,
+  angry: null
+};
+
+const users = {}; // Para guardar divs de cada usuario
+
+// Función para convertir archivo a URL local
+function handleFile(file, state) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    avatarImages[state] = e.target.result;
+    console.log(`${state} listo`);
+  };
+  reader.readAsDataURL(file);
+}
+
+// Botones para elegir imagen
+document.getElementById("btnIdle").onclick = () => document.getElementById("fileIdle").click();
+document.getElementById("btnTalk").onclick = () => document.getElementById("fileTalk").click();
+document.getElementById("btnAngry").onclick = () => document.getElementById("fileAngry").click();
+
+document.getElementById("fileIdle").addEventListener("change", (e) => {
+  if(e.target.files[0]) handleFile(e.target.files[0], "idle");
+});
+document.getElementById("fileTalk").addEventListener("change", (e) => {
+  if(e.target.files[0]) handleFile(e.target.files[0], "talk");
+});
+document.getElementById("fileAngry").addEventListener("change", (e) => {
+  if(e.target.files[0]) handleFile(e.target.files[0], "angry");
+});
+
+// WebSocket
 socket.onopen = () => {
-  document.getElementById("status").textContent = "🟢 Conectado al servidor";
+  statusEl.textContent = "🟢 Conectado al servidor";
   socket.send(JSON.stringify({ type: "join", user: USERNAME }));
 };
 
+socket.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  let userDiv = users[data.user];
+  if (!userDiv) {
+    userDiv = document.createElement("div");
+    userDiv.className = "user-avatar";
+    userDiv.innerHTML = `<p>${data.user}</p><img src="" alt="avatar">`;
+    avatarsDiv.appendChild(userDiv);
+    users[data.user] = userDiv;
+  }
+
+  const img = userDiv.querySelector("img");
+  // Si la imagen está cargada, úsala; si no, deja vacía
+  if (avatarImages[data.state]) {
+    img.src = avatarImages[data.state];
+  } else {
+    img.src = "";
+  }
+};
+
+socket.onclose = () => statusEl.textContent = "❌ Conexión cerrada";
+socket.onerror = (err) => statusEl.textContent = "⚠️ Error WebSocket";
+
+// Micrófono
 let audioContext, analyser, dataArray;
 
 navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -42,18 +142,13 @@ navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
     analyser.getByteFrequencyData(dataArray);
 
     let sum = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-      sum += dataArray[i];
-    }
+    for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
 
-    let volume = sum / dataArray.length / 255;
+    const volume = sum / dataArray.length / 255;
 
     let state = "idle";
-    if (volume > 0.05) state = "talk";
-    if (volume > 0.20) state = "angry";
-
-    document.getElementById("state").textContent =
-      `Estado: ${state} | Volumen: ${volume.toFixed(2)}`;
+    if (volume > 0.10) state = "talk";
+    if (volume > 0.25) state = "angry";
 
     socket.send(JSON.stringify({
       type: "state",

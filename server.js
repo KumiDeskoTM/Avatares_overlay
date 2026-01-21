@@ -1,9 +1,16 @@
-const WebSocket = require("ws");
+const express = require("express");
 const http = require("http");
+const WebSocket = require("ws");
+const path = require("path");
 
-const server = http.createServer();
+const app = express();
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Carpeta donde está client.html y avatars/
+app.use(express.static(path.join(__dirname)));
+
+// Mapa de clientes
 const clients = new Map();
 
 wss.on("connection", (ws) => {
@@ -38,5 +45,5 @@ wss.on("connection", (ws) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("🟢 Servidor WebSocket activo en puerto", PORT);
+  console.log("🟢 Servidor WebSocket + Express activo en puerto", PORT);
 });
