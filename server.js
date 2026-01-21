@@ -7,10 +7,10 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Carpeta donde está client.html y avatars/
-app.use(express.static(path.join(__dirname)));
+// Servir archivos estáticos desde public/
+app.use(express.static(path.join(__dirname, "public")));
 
-// Mapa de clientes
+// Map de clientes
 const clients = new Map();
 
 wss.on("connection", (ws) => {
