@@ -25,7 +25,6 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    // Cuando un usuario se une
     if (data.type === "join") {
       userId = data.user;
       clients.set(userId, ws);
@@ -33,8 +32,8 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    // Cuando un usuario envía su estado de micrófono
-    if (data.type === "state") {
+    // Enviar mensajes de estado o avatar a todos los clientes
+    if (data.type === "state" || data.type === "avatar") {
       for (const client of clients.values()) {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(data));

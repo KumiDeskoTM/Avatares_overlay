@@ -57,7 +57,7 @@
 <script>
 const USERNAME = prompt("Tu nombre (ej: juan):");
 
-// Conexión WebSocket al servidor Render
+// Conexión WebSocket
 const socket = new WebSocket("wss://avatares-overlay.onrender.com");
 
 const statusEl = document.getElementById("status");
@@ -70,20 +70,27 @@ const avatarImages = {
   angry: null
 };
 
-// Guardar div de cada usuario
+// Divs de usuarios
 const users = {};
 
-// Función para convertir archivo a URL local
+// Función para manejar subida de archivos
 function handleFile(file, state) {
   const reader = new FileReader();
   reader.onload = (e) => {
     avatarImages[state] = e.target.result;
-    console.log(`${state} listo`);
+
+    // Enviar la imagen al servidor en Base64
+    socket.send(JSON.stringify({
+      type: "avatar",
+      user: USERNAME,
+      state: state,
+      image: e.target.result
+    }));
   };
   reader.readAsDataURL(file);
 }
 
-// Botones para elegir imagen
+// Botones
 document.getElementById("btnIdle").onclick = () => document.getElementById("fileIdle").click();
 document.getElementById("btnTalk").onclick = () => document.getElementById("fileTalk").click();
 document.getElementById("btnAngry").onclick = () => document.getElementById("fileAngry").click();
@@ -117,10 +124,19 @@ socket.onmessage = (event) => {
   }
 
   const img = userDiv.querySelector("img");
-  if (avatarImages[data.state]) {
-    img.src = avatarImages[data.state];
-  } else {
-    img.src = ""; // Si no se ha cargado la imagen
+
+  // Si es un mensaje de avatar, actualiza la imagen correspondiente
+  if (data.type === "avatar") {
+    if (data.user === USERNAME) avatarImages[data.state] = data.image;
+    if (img) img.src = data.image;
+    return;
+  }
+
+  // Si es un mensaje de estado, cambia la imagen según el estado
+  if (data.type === "state") {
+    if (avatarImages[data.state]) {
+      img.src = avatarImages[data.state];
+    }
   }
 };
 
@@ -147,8 +163,8 @@ navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
     const volume = sum / dataArray.length / 255;
 
     let state = "idle";
-    if (volume > 0.10) state = "talk";
-    if (volume > 0.30) state = "angry";
+    if (volume > 0.05) state = "talk";
+    if (volume > 0.20) state = "angry";
 
     socket.send(JSON.stringify({
       type: "state",
