@@ -147,8 +147,8 @@ navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
     const volume = sum / dataArray.length / 255;
 
     let state = "idle";
-    if (volume > 0.05) state = "talk";
-    if (volume > 0.20) state = "angry";
+    if (volume > 0.10) state = "talk";
+    if (volume > 0.30) state = "angry";
 
     socket.send(JSON.stringify({
       type: "state",
